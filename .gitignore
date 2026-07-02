@@ -1,0 +1,58 @@
+# ─── Dependências ─────────────────────────────────────────────────────────────
+node_modules/
+**/node_modules/
+
+# ─── Segredos / ambiente (NUNCA versionar) ──────────────────────────────────────
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!backend/.env.example
+*.pem
+*.key
+*.p12
+secrets/
+**/telegram_token
+
+# ─── Build / artefatos ──────────────────────────────────────────────────────────
+dist/
+build/
+**/dist/
+**/build/
+*.tsbuildinfo
+.vite/
+
+# ─── Prisma / banco local ───────────────────────────────────────────────────────
+*.sqlite
+*.db
+backend/prisma/dev.db
+
+# ─── Logs ───────────────────────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ─── Cobertura / testes ─────────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ─── Editor / SO ────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Ferramentas locais ─────────────────────────────────────────────────────────
+.claude/
+
+# ─── Dados de execução / dumps (evita vazar dados de investigação) ──────────────
+*.dump
+*.sql.gz
+data/
+uploads/
+exports/

@@ -1,0 +1,628 @@
+// RedNest V2 — Prisma schema
+// PostgreSQL 17 · JSONB for rich engagement data · soft-delete on core entities
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum Role {
+  admin
+  analyst
+  viewer
+}
+
+enum OperationStatus {
+  active
+  paused
+  completed
+  archived
+}
+
+enum OperationPriority {
+  critical
+  high
+  medium
+  low
+}
+
+enum EngagementType {
+  osint
+  domain
+  website
+  infrastructure
+  organization
+  person
+  social_profile
+  leak
+}
+
+enum EngagementStatus {
+  active
+  paused
+  completed
+}
+
+enum IOCType {
+  domain
+  ip
+  email
+  url
+  hash_md5
+  hash_sha1
+  hash_sha256
+  username
+  phone
+  cve
+  wallet
+  asn
+}
+
+enum IOCThreatLevel {
+  critical
+  high
+  medium
+  low
+  informational
+}
+
+enum EventType {
+  ioc_added
+  evidence_collected
+  domain_found
+  profile_found
+  leak_found
+  alert_triggered
+  operation_created
+  engagement_created
+  note_added
+  monitoring_alert
+  // Investigation Event Bus — ciclo de vida das engines
+  engine_started
+  engine_finished
+  engine_failed
+  asset_found
+  correlation
+}
+
+enum AlertSeverity {
+  critical
+  high
+  medium
+  low
+}
+
+// ─── Users & Auth ─────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role      @default(analyst)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  lastLogin    DateTime? @map("last_login")
+
+  refreshTokens RefreshToken[]
+  apiKeys       ApiKey[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model ApiKey {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  prefix     String // visible non-secret prefix, e.g. rn_live_a1b2
+  keyHash    String    @map("key_hash") // argon2 hash of the full secret
+  scopes     String[]  @default([])
+  createdAt  DateTime  @default(now()) @map("created_at")
+  expiresAt  DateTime? @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  lastUsedAt DateTime? @map("last_used_at")
+
+  @@index([userId])
+  @@index([prefix])
+  @@map("api_keys")
+}
+
+// ─── Operations ───────────────────────────────────────────────────────────────
+
+model Operation {
+  id          String            @id @default(uuid())
+  name        String
+  description String            @default("")
+  status      OperationStatus   @default(active)
+  priority    OperationPriority @default(medium)
+  tags        String[]          @default([])
+  progress    Int               @default(0)
+  // Denormalized display counters (kept in sync on writes; mirror the UI fields)
+  engagementCount Int           @default(0) @map("engagement_count")
+  iocCount        Int           @default(0) @map("ioc_count")
+  evidenceCount   Int           @default(0) @map("evidence_count")
+  alertCount      Int           @default(0) @map("alert_count")
+  reportCount Int               @default(0) @map("report_count")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  deletedAt   DateTime?         @map("deleted_at")
+  deletedBy   String?           @map("deleted_by")
+
+  engagements Engagement[]
+  iocs        Ioc[]
+  events      TimelineEvent[]
+  alerts      Alert[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([deletedAt])
+  @@map("operations")
+}
+
+// ─── Engagements ──────────────────────────────────────────────────────────────
+
+model Engagement {
+  id          String           @id @default(uuid())
+  operationId String           @map("operation_id")
+  operation   Operation        @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  name        String
+  target      String
+  type        EngagementType
+  status      EngagementStatus @default(active)
+  tags        String[]         @default([])
+  iocCount      Int            @default(0) @map("ioc_count")
+  evidenceCount Int            @default(0) @map("evidence_count")
+  enrichment  Json?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  deletedAt   DateTime?        @map("deleted_at")
+  deletedBy   String?          @map("deleted_by")
+
+  data     EngagementData?
+  iocs     Ioc[]
+  events   TimelineEvent[]
+  findings Finding[]
+
+  @@index([operationId])
+  @@index([type])
+  @@index([deletedAt])
+  @@map("engagements")
+}
+
+// Achados coletados pelas engines (tudo que é descoberto fica navegável aqui)
+model Finding {
+  id           String     @id @default(uuid())
+  engagementId String     @map("engagement_id")
+  engagement   Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  operationId  String     @map("operation_id")
+  type         String // subdomain|host|email|username|profile|service|url|endpoint|ioc|leak|credential|cve|screenshot|tech
+  value        String
+  label        String?
+  source       String? // engine/ferramenta que produziu
+  target       String? // alvo da investigação de origem
+  severity     String?
+  data         Json?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([engagementId, type, value])
+  @@index([engagementId, type])
+  @@map("findings")
+}
+
+// Rich per-type data stored as JSONB (osintData/webData/domainData/...)
+model EngagementData {
+  engagementId String     @id @map("engagement_id")
+  engagement   Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  data         Json
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@map("engagement_data")
+}
+
+// ─── IOCs ───────────────────────────────────────────────────────────────────
+
+model Ioc {
+  id           String         @id @default(uuid())
+  operationId  String         @map("operation_id")
+  operation    Operation      @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  engagementId String?        @map("engagement_id")
+  engagement   Engagement?    @relation(fields: [engagementId], references: [id], onDelete: SetNull)
+  value        String
+  type         IOCType
+  threatLevel  IOCThreatLevel @map("threat_level")
+  tags         String[]       @default([])
+  source       String         @default("")
+  description  String         @default("")
+  relatedCount Int            @default(0) @map("related_count")
+  enrichment   Json?
+  firstSeen    DateTime       @default(now()) @map("first_seen")
+  lastSeen     DateTime       @default(now()) @map("last_seen")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  deletedAt    DateTime?      @map("deleted_at")
+  deletedBy    String?        @map("deleted_by")
+
+  relationsFrom IocRelation[] @relation("IocRelationSource")
+  relationsTo   IocRelation[] @relation("IocRelationTarget")
+
+  @@index([operationId])
+  @@index([engagementId])
+  @@index([type])
+  @@index([threatLevel])
+  @@index([type, value])
+  @@index([deletedAt])
+  @@map("iocs")
+}
+
+model IocRelation {
+  id           String   @id @default(uuid())
+  sourceIocId  String   @map("source_ioc_id")
+  targetIocId  String   @map("target_ioc_id")
+  source       Ioc      @relation("IocRelationSource", fields: [sourceIocId], references: [id], onDelete: Cascade)
+  target       Ioc      @relation("IocRelationTarget", fields: [targetIocId], references: [id], onDelete: Cascade)
+  relationType String   @default("related") @map("relation_type")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([sourceIocId, targetIocId, relationType])
+  @@index([sourceIocId])
+  @@index([targetIocId])
+  @@map("ioc_relations")
+}
+
+// ─── Timeline ─────────────────────────────────────────────────────────────────
+
+model TimelineEvent {
+  id           String          @id @default(uuid())
+  type         EventType
+  title        String
+  description  String          @default("")
+  operationId  String          @map("operation_id")
+  operation    Operation       @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  engagementId String?         @map("engagement_id")
+  engagement   Engagement?     @relation(fields: [engagementId], references: [id], onDelete: SetNull)
+  severity     IOCThreatLevel?
+  // Investigation Event Bus
+  engine       String?         // engine que emitiu (investigation/osint/recon/threatintel/correlation)
+  category     String?         // categoria (system/discovery/enrichment/finding/correlation)
+  icon         String?         // ícone sugerido (nome lucide)
+  details      Json?           // payload estruturado do evento
+  timestamp    DateTime        @default(now())
+
+  @@index([operationId])
+  @@index([engagementId])
+  @@index([timestamp])
+  @@map("timeline_events")
+}
+
+// ─── NVD / CVEs ───────────────────────────────────────────────────────────────
+
+model Cve {
+  id           String    @id @default(uuid())
+  cveId        String    @unique
+  published    DateTime?
+  lastModified DateTime?
+  description  String    @default("")
+  cvssScore    Float?
+  cvssSeverity String?   // CRITICAL | HIGH | MEDIUM | LOW | NONE
+  cvssVector   String?
+  cvssVersion  String?
+  cwe          String?
+  vendors      String[]
+  products     String[]
+  refs         String[]
+  searchText   String    @default("") // lower(desc + vendors + products) p/ ILIKE
+  fetchedAt    DateTime  @default(now())
+
+  @@index([cvssSeverity])
+  @@index([published])
+  @@map("cves")
+}
+
+// ─── Anotações ────────────────────────────────────────────────────────────────
+
+enum NotePriority {
+  low
+  medium
+  high
+  critical
+}
+
+enum NoteStatus {
+  open
+  doing
+  done
+}
+
+model Note {
+  id           String       @id @default(uuid())
+  operationId  String       @map("operation_id")
+  engagementId String?      @map("engagement_id") // null = anotação da operação
+  title        String       @default("")
+  body         String       @default("")
+  priority     NotePriority @default(medium)
+  status       NoteStatus   @default(open)
+  dueAt        DateTime?    @map("due_at")
+  authorId     String?      @map("author_id")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@index([operationId])
+  @@index([engagementId])
+  @@map("notes")
+}
+
+// ─── Denúncias (abuse/complaint tracking) ─────────────────────────────────────
+
+enum ComplaintStatus {
+  draft // rascunho
+  submitted // enviada
+  acknowledged // recebida/confirmada
+  in_review // em análise
+  resolved // resolvida (ação tomada)
+  rejected // rejeitada
+  closed // encerrada
+}
+
+model Complaint {
+  id           String            @id @default(uuid())
+  operationId  String            @map("operation_id")
+  engagementId String?           @map("engagement_id")
+  title        String            @default("")
+  target       String // URL/domínio/página/post denunciado
+  platform     String // onde foi denunciado (GoDaddy, Cloudflare, Google, Meta, NCMEC…)
+  ticketId     String?           @map("ticket_id")
+  ticketUrl    String?           @map("ticket_url")
+  category     String? // tipo de abuso (CSAM, phishing, malware, fraude…)
+  status       ComplaintStatus   @default(submitted)
+  priority     OperationPriority @default(medium)
+  notes        String?
+  submittedAt  DateTime?         @map("submitted_at")
+  resolvedAt   DateTime?         @map("resolved_at")
+  authorId     String?           @map("author_id")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  @@index([operationId])
+  @@index([status])
+  @@map("complaints")
+}
+
+// ─── Pessoas (dossiê OSINT) ───────────────────────────────────────────────────
+
+model Person {
+  id           String   @id @default(uuid())
+  operationId  String   @map("operation_id")
+  engagementId String?  @map("engagement_id")
+  name         String   @default("")
+  photo        String? // data:image/...;base64 ou URL
+  data         Json? // ficha completa (todas as seções)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([operationId])
+  @@index([engagementId])
+  @@map("persons")
+}
+
+// ─── Threat Feeds ─────────────────────────────────────────────────────────────
+
+model ThreatFeedItem {
+  id          String    @id @default(uuid())
+  source      String    // 'cisa-kev' | 'rss:<nome>'
+  type        String    // 'kev' | 'ioc' | 'advisory'
+  key         String    // chave de dedupe (cveID, valor do IOC, guid do artigo)
+  title       String    @default("")
+  url         String?
+  iocType     String?   // ip | domain | url | hash | cve | email
+  indicator   String?   // valor do IOC / CVE
+  vendor      String?
+  product     String?
+  severity    String?
+  publishedAt DateTime?
+  details     Json?
+  fetchedAt   DateTime  @default(now())
+
+  @@unique([source, key])
+  @@index([type])
+  @@index([iocType])
+  @@index([fetchedAt])
+  @@map("threat_feed_items")
+}
+
+// ─── Alerts ───────────────────────────────────────────────────────────────────
+
+model Alert {
+  id           String        @id @default(uuid())
+  monitorId    String        @map("monitor_id")
+  title        String
+  description  String        @default("")
+  severity     AlertSeverity
+  operationId  String        @map("operation_id")
+  operation    Operation     @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  acknowledged Boolean       @default(false)
+  timestamp    DateTime      @default(now())
+
+  @@index([acknowledged])
+  @@index([severity])
+  @@index([timestamp])
+  @@map("alerts")
+}
+
+// ─── Integrations (chaves de provedores externos) ────────────────────────────
+
+// Chave de API de um provedor externo (VirusTotal, AbuseIPDB, etc.).
+// O valor é criptografado em repouso (AES-256-GCM) — precisamos do texto puro
+// para chamar o provedor, então o armazenamento é reversível (não é hash).
+model ProviderKey {
+  service   String   @id
+  encrypted String
+  iv        String
+  tag       String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("provider_keys")
+}
+
+// ─── Evidências ───────────────────────────────────────────────────────────────
+
+model Evidence {
+  id           String   @id @default(uuid())
+  operationId  String?  @map("operation_id")
+  engagementId String?  @map("engagement_id")
+  name         String
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  size         Int
+  storedPath   String   @map("stored_path")
+  description  String   @default("")
+  tags         String[] @default([])
+  uploadedBy   String?  @map("uploaded_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([engagementId])
+  @@index([operationId])
+  @@map("evidence")
+}
+
+// ─── Relatórios ─────────────────────────────────────────────────────────────────
+
+model Report {
+  id           String   @id @default(uuid())
+  operationId  String?  @map("operation_id")
+  engagementId String?  @map("engagement_id")
+  name         String
+  format       String   @default("pdf")
+  storedPath   String   @map("stored_path")
+  size         Int      @default(0)
+  createdBy    String?  @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([operationId])
+  @@map("reports")
+}
+
+// ─── Monitoramento ──────────────────────────────────────────────────────────────
+
+enum MonitorKind {
+  http_content
+  ioc_recheck
+}
+
+model Monitor {
+  id              String      @id @default(uuid())
+  operationId     String      @map("operation_id")
+  engagementId    String?     @map("engagement_id")
+  iocId           String?     @map("ioc_id")
+  kind            MonitorKind
+  target          String
+  intervalMinutes Int         @default(60) @map("interval_minutes")
+  active          Boolean     @default(true)
+  useProxy        Boolean     @default(false) @map("use_proxy")
+  lastRunAt       DateTime?   @map("last_run_at")
+  lastValue       String?     @map("last_value")
+  lastStatus      String?     @map("last_status")
+  lastContent     String?     @map("last_content") // texto normalizado do último run (p/ diff)
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  runs MonitorRun[]
+
+  @@index([operationId])
+  @@index([active])
+  @@map("monitors")
+}
+
+// Histórico de execuções de um monitor (timeline + screenshot + diff + hash)
+model MonitorRun {
+  id            String   @id @default(uuid())
+  monitorId     String   @map("monitor_id")
+  monitor       Monitor  @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  status        String // ok | changed | error
+  httpStatus    Int?     @map("http_status")
+  contentHash   String?  @map("content_hash")
+  contentLength Int?     @map("content_length")
+  changed       Boolean  @default(false)
+  diff          Json?    // { addedLines, removedLines, addedSample[], removedSample[] }
+  screenshot    String?  // data:image/png;base64
+  content       String?  // source normalizado da página (texto) capturado nesta run
+  note          String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([monitorId, createdAt])
+  @@map("monitor_runs")
+}
+
+// ─── Proxies ──────────────────────────────────────────────────────────────────
+
+enum ProxyProtocol {
+  http
+  socks4
+  socks5
+}
+
+model Proxy {
+  id            String        @id @default(uuid())
+  protocol      ProxyProtocol
+  host          String
+  port          Int
+  alive         Boolean       @default(false)
+  latencyMs     Int?          @map("latency_ms")
+  country       String? // ISO code (ex.: BR)
+  countryName   String?       @map("country_name")
+  anonymity     String? // transparent | anonymous | elite
+  exitIp        String?       @map("exit_ip")
+  source        String        @default("proxyscrape")
+  failCount     Int           @default(0) @map("fail_count")
+  lastCheckedAt DateTime?     @map("last_checked_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@unique([protocol, host, port])
+  @@index([alive, latencyMs])
+  @@index([protocol])
+  @@index([country])
+  @@map("proxies")
+}
+
+// ─── Audit ──────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  oldValue   Json?    @map("old_value")
+  newValue   Json?    @map("new_value")
+  ip         String?
+  timestamp  DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}

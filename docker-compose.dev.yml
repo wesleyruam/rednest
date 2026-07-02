@@ -1,0 +1,16 @@
+# Override de desenvolvimento — backend com hot-reload (sem rebuild a cada mudança).
+# Uso:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d backend
+#   (ou `make dev`)  → edita backend/src e o Nest recompila sozinho.
+# Frontend em dev: rode `npm run dev` na raiz (Vite em :5173, proxy /api → :3333).
+services:
+  backend:
+    build:
+      target: builder
+    command: ["sh", "-c", "npx prisma migrate deploy && node prisma/ensure-users.cjs && npm run start:dev"]
+    environment:
+      NODE_ENV: development
+      OTEL_ENABLED: "false"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+      - rednest_uploads:/app/uploads

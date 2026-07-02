@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "tsConfigPath": "tsconfig.build.json",
+    "assets": [
+      { "include": "integrations/data/*.json", "outDir": "dist" },
+      { "include": "integrations/data/wordlists/*.txt", "outDir": "dist" }
+    ],
+    "watchAssets": true
+  }
+}

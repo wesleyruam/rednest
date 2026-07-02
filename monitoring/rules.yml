@@ -1,0 +1,29 @@
+groups:
+  - name: rednest
+    rules:
+      - alert: BackendDown
+        expr: up{job="rednest-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend RedNest fora do ar"
+          description: "O endpoint /api/metrics não responde há mais de 1 minuto."
+
+      - alert: HighHttpLatencyP95
+        expr: histogram_quantile(0.95, sum by (le) (rate(rednest_http_request_duration_seconds_bucket[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latência HTTP p95 alta (> 1s)"
+          description: "O p95 de latência das requisições está acima de 1s por 5 minutos."
+
+      - alert: MonitorQueueFailures
+        expr: rednest_monitor_queue_jobs{state="failed"} > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Jobs falhando na fila de monitores"
+          description: "Há {{ $value }} job(s) com falha na fila BullMQ de monitoramento."

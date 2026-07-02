@@ -1,0 +1,166 @@
+# RedNest V2 — stack completa: PostgreSQL + Redis + API + Front
+# Sobe tudo com:  docker compose up -d --build
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: rednest-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rednest
+      POSTGRES_PASSWORD: rednest
+      POSTGRES_DB: rednest
+    ports:
+      - "5432:5432"
+    volumes:
+      - rednest_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rednest -d rednest"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: rednest-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - rednest_redisdata:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: rednest-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3333
+      DATABASE_URL: "postgresql://rednest:rednest@postgres:5432/rednest?schema=public"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_ACCESS_SECRET: change-me-access-secret-in-production
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_SECRET: change-me-refresh-secret-in-production
+      JWT_REFRESH_TTL: 7d
+      API_KEY_PREFIX: rn_live_
+      INTEGRATIONS_SECRET: change-me-integrations-secret-in-production
+      UPLOAD_DIR: /app/uploads
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: rednest-backend
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+      THROTTLE_TTL: 60
+      THROTTLE_LIMIT: 100
+      CORS_ORIGINS: "http://localhost:8090"
+      SEED_ADMIN_USERNAME: admin
+      SEED_ADMIN_EMAIL: admin@rednest.local
+      SEED_ADMIN_PASSWORD: admin123
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    ports:
+      - "3333:3333"
+    volumes:
+      - rednest_uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3333/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rednest-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8090:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─── Observabilidade ───────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v3.5.4
+    container_name: rednest-prometheus
+    restart: unless-stopped
+    depends_on:
+      - alertmanager
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules.yml:/etc/prometheus/rules.yml:ro
+      - rednest_prom:/prometheus
+    ports:
+      - "9090:9090"
+
+  alertmanager:
+    image: prom/alertmanager:v0.33.0
+    container_name: rednest-alertmanager
+    restart: unless-stopped
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        printf '%s' "$$TELEGRAM_BOT_TOKEN" > /etc/alertmanager/telegram_token &&
+        sed "s/__CHAT_ID__/$${TELEGRAM_CHAT_ID:-0}/" /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.yml &&
+        exec /bin/alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/alertmanager
+    ports:
+      - "9093:9093"
+
+  grafana:
+    image: grafana/grafana:13.1.0
+    container_name: rednest-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - rednest_grafana:/var/lib/grafana
+    ports:
+      - "3001:3000"
+
+  tempo:
+    image: grafana/tempo@sha256:1ce31d6d7ffab62189685e8c47881d4a561c5d38bd0dbd66e40ca83cef07923d
+    container_name: rednest-tempo
+    restart: unless-stopped
+    user: "0:0"
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./monitoring/tempo.yaml:/etc/tempo.yaml:ro
+      - rednest_tempo:/var/tempo
+    ports:
+      - "3200:3200"
+
+volumes:
+  rednest_pgdata:
+  rednest_redisdata:
+  rednest_uploads:
+  rednest_prom:
+  rednest_grafana:
+  rednest_tempo:
