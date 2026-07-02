@@ -193,13 +193,28 @@
   7. SCREENSHOTS  (dados 100% fictícios)
 ────────────────────────────────────────────────────────────────────────────────
 
-    docs/screenshots/01-login.png                Tela de acesso
-    docs/screenshots/02-operacao-visao-geral.png  Dashboard da operação (KPIs, mapa)
-    docs/screenshots/03-denuncias.png             Denúncias / abuse tracking
-    docs/screenshots/04-engajamentos.png          Operação & engajamentos
-    docs/screenshots/05-pessoa-dossie.png         Pessoa (Dossiê OSINT)
-    docs/screenshots/06-email-intel.png           Inteligência de E-mail & Usuários
-    docs/screenshots/07-proxies.png               Pool de Proxies (validação/geo)
+  Veja o manual ilustrado em README.md. Capturas (dados fictícios) em docs/screenshots/:
+
+    01-login ........................ Tela de acesso
+    02-operacao-visao-geral ......... Dashboard da operação (KPIs, mapa)
+    03-operacao-alvos ............... Modelo de entidades unificado (Alvos)
+    04-operacao-atividades .......... Event Viewer (Investigation Event Bus)
+    05-operacao-anotacoes ........... Anotações do caso
+    06-operacao-denuncias ........... Denúncias / abuse tracking
+    07-wordpress-scan ............... WordPress Engine (estilo WPScan)
+    08-recon-pipeline ............... Recon Pipeline (execução ao vivo)
+    09-content-discovery ............ Content Discovery (estilo Gobuster)
+    10-service-scan ................. Service Scan (HTTP/TLS/SSH/FTP)
+    11-atribuicao-dominio ........... WHOIS/RDAP -> IP -> hosting
+    12-screenshot-engine ............ Screenshot Engine (Chromium/proxy)
+    13-crawler ...................... Crawler (estilo Katana)
+    14-pessoa-dossie ................ Pessoa (Dossiê OSINT + PDF)
+    15-email-intel-consult .......... Inteligência de E-mail (consulta ao vivo)
+    16-username-search .............. Username Search (~700 sites, SSE)
+    17-google-dorks ................. Google Dorks
+    18-proxies ...................... Pool de Proxies (validação/rotação/geo)
+    19-vulnerabilidades ............. Vulnerabilidades (NVD)
+    20-threat-feeds ................. Threat Feeds (CISA KEV / RSS)
 
 
 ────────────────────────────────────────────────────────────────────────────────
