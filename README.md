@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🕸️ RedNest
+<img src="docs/logo.svg" alt="RedNest" width="440" />
 
 ### Manual técnico — Plataforma de **CTI · OSINT · Investigação Digital** (self-hosted)
 

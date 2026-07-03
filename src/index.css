@@ -210,15 +210,9 @@ label { font-size: 11px; color: var(--text-secondary); display: block; margin-bo
   gap: 4px;
 }
 .nav-rail-logo {
-  width: 36px; height: 36px; border-radius: 10px;
+  width: 40px; height: 40px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 8px; flex-shrink: 0;
-  background: rgba(127,119,221,.12); border: 1px solid rgba(127,119,221,.22);
-}
-.nav-rail-dot {
-  width: 12px; height: 12px; border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #ff5c72, #d92c46);
-  box-shadow: 0 0 10px rgba(217,44,70,.55);
 }
 .nav-rail-group { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .nav-rail-spacer { flex: 1; }

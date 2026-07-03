@@ -1,4 +1,5 @@
 import { Plus, Folder, Settings, Info, LogOut, Key, ShieldAlert, Activity, Rss, Bug, Network, FolderKanban } from 'lucide-react'
+import { RedNestMark } from '@/components/brand/RedNestLogo'
 import { useDataStore } from '@/store/data'
 import { useUIStore } from '@/store/ui'
 import { useAppStore } from '@/store/app'
@@ -47,7 +48,7 @@ export function OpsSidebar() {
       {/* ---------- Rail de ícones (sidebar principal) ---------- */}
       <aside className="nav-rail">
         <div className="nav-rail-logo" title="RedNest">
-          <span className="nav-rail-dot" />
+          <RedNestMark size={30} bg="#08080c" />
         </div>
 
         <nav className="nav-rail-group">

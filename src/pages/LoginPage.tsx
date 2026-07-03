@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Shield, Eye, EyeOff, AlertCircle, ArrowRight, Lock, User } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, ArrowRight, Lock, User } from 'lucide-react'
+import { RedNestMark } from '@/components/brand/RedNestLogo'
 import { useAppStore } from '@/store/app'
 import { apiLogin, ApiError } from '@/lib/api'
 
@@ -113,22 +114,12 @@ export function LoginPage() {
 
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 'auto', position: 'relative' }}>
-          <div style={{
-            width: 42, height: 42, borderRadius: 11,
-            background: 'linear-gradient(135deg, rgba(127,119,221,.35), rgba(90,209,255,.2))',
-            border: '1px solid rgba(127,119,221,.45)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 20px rgba(127,119,221,.3)',
-          }}>
-            <Shield size={20} style={{ color: '#b0abf0' }} />
-          </div>
+          <RedNestMark size={46} />
           <div>
-            <div style={{
-              fontSize: 20, fontWeight: 800, lineHeight: 1,
-              background: 'linear-gradient(90deg, #b0abf0, #5ad1ff)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            }}>RedNest</div>
-            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.3)', letterSpacing: '.12em', textTransform: 'uppercase', marginTop: 1 }}>V2 Platform</div>
+            <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.01em', fontFamily: "'Space Grotesk', sans-serif" }}>
+              <span style={{ color: '#e8213c' }}>Red</span><span style={{ color: '#f2f2f5' }}>Nest</span>
+            </div>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.3)', letterSpacing: '.12em', textTransform: 'uppercase', marginTop: 3 }}>V2 Platform</div>
           </div>
         </div>
 
