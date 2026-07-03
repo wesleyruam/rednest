@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Eye, EyeOff, AlertCircle, ArrowRight, Lock, User } from 'lucide-react'
 import { RedNestMark } from '@/components/brand/RedNestLogo'
+import { NetworkBackground } from '@/components/brand/NetworkBackground'
 import { useAppStore } from '@/store/app'
 import { apiLogin, ApiError } from '@/lib/api'
 
@@ -104,6 +105,9 @@ export function LoginPage() {
           backgroundImage: 'linear-gradient(rgba(127,119,221,1) 1px, transparent 1px), linear-gradient(90deg, rgba(127,119,221,1) 1px, transparent 1px)',
           backgroundSize: '40px 40px',
         }} />
+
+        {/* Teia animada de nós */}
+        <NetworkBackground opacity={0.7} />
 
         {/* Glow blob */}
         <div style={{
