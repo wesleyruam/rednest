@@ -200,6 +200,52 @@ label { font-size: 11px; color: var(--text-secondary); display: block; margin-bo
 
 .main-area { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 
+/* ─── Nav Rail (sidebar principal de ícones) ──────────────────────────────── */
+.nav-rail {
+  width: 56px; min-width: 56px; flex-shrink: 0;
+  background: #08080c;
+  border-right: 1px solid rgba(255,255,255,.06);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 12px 0 10px;
+  gap: 4px;
+}
+.nav-rail-logo {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 8px; flex-shrink: 0;
+  background: rgba(127,119,221,.12); border: 1px solid rgba(127,119,221,.22);
+}
+.nav-rail-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ff5c72, #d92c46);
+  box-shadow: 0 0 10px rgba(217,44,70,.55);
+}
+.nav-rail-group { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.nav-rail-spacer { flex: 1; }
+.nav-rail-btn {
+  position: relative;
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; cursor: pointer;
+  color: var(--text-muted);
+  transition: background 0.12s, color 0.12s;
+}
+.nav-rail-btn:hover { background: rgba(255,255,255,.06); color: var(--text-primary); }
+.nav-rail-btn.active { background: rgba(127,119,221,.16); color: #a9a4ee; }
+.nav-rail-btn.active::before {
+  content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 20px; border-radius: 0 3px 3px 0; background: #7F77DD;
+}
+.nav-rail-btn.danger:hover { background: rgba(239,68,68,.14); color: #f08a8a; }
+.nav-rail-avatar {
+  width: 32px; height: 32px; border-radius: 50%; margin-top: 6px; flex-shrink: 0;
+  background: linear-gradient(135deg, #1e1e2a, #2a2a3c);
+  border: 1.5px solid var(--border-hover);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); font-size: 10.5px; font-weight: 600;
+  cursor: default;
+}
+
 /* ─── Operations Sidebar ──────────────────────────────────────────────────── */
 .ops-sidebar {
   width: 210px; min-width: 210px;
