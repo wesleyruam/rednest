@@ -399,6 +399,8 @@ model Complaint {
   status       ComplaintStatus   @default(submitted)
   priority     OperationPriority @default(medium)
   notes        String?
+  result       String? // resultado (Removido, Domínio derrubado, Em avaliação, Sem resposta, Arquivo…)
+  data         Json? // { events:[], notes:[], attachments:[] }
   submittedAt  DateTime?         @map("submitted_at")
   resolvedAt   DateTime?         @map("resolved_at")
   authorId     String?           @map("author_id")

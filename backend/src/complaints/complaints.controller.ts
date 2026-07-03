@@ -18,6 +18,7 @@ class CreateComplaintDto {
   @ApiPropertyOptional({ enum: ComplaintStatus }) @IsOptional() @IsEnum(ComplaintStatus) status?: ComplaintStatus;
   @ApiPropertyOptional({ enum: OperationPriority }) @IsOptional() @IsEnum(OperationPriority) priority?: OperationPriority;
   @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() result?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() submittedAt?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() resolvedAt?: string;
 }
@@ -32,9 +33,14 @@ class UpdateComplaintDto {
   @ApiPropertyOptional({ enum: ComplaintStatus }) @IsOptional() @IsEnum(ComplaintStatus) status?: ComplaintStatus;
   @ApiPropertyOptional({ enum: OperationPriority }) @IsOptional() @IsEnum(OperationPriority) priority?: OperationPriority;
   @ApiPropertyOptional() @IsOptional() @IsString() notes?: string | null;
+  @ApiPropertyOptional() @IsOptional() @IsString() result?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsString() submittedAt?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsString() resolvedAt?: string | null;
 }
+
+class NoteDto { @ApiProperty() @IsString() text: string; }
+class AttachmentDto { @ApiProperty() @IsString() name: string; @ApiPropertyOptional() @IsOptional() @IsString() url?: string; }
+class EventDto { @ApiProperty() @IsString() title: string; @ApiPropertyOptional() @IsOptional() @IsString() description?: string; }
 
 @ApiTags('complaints')
 @ApiBearerAuth()
@@ -55,13 +61,31 @@ export class ComplaintsController {
   @Roles(Role.admin, Role.analyst)
   @Post()
   create(@Body() dto: CreateComplaintDto, @CurrentUser() user: AuthUser) {
-    return this.complaints.create(dto, user.id);
+    return this.complaints.create(dto, user.username);
   }
 
   @Roles(Role.admin, Role.analyst)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateComplaintDto) {
-    return this.complaints.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateComplaintDto, @CurrentUser() user: AuthUser) {
+    return this.complaints.update(id, dto, user.username);
+  }
+
+  @Roles(Role.admin, Role.analyst)
+  @Post(':id/notes')
+  addNote(@Param('id') id: string, @Body() dto: NoteDto, @CurrentUser() user: AuthUser) {
+    return this.complaints.addNote(id, dto.text, user.username);
+  }
+
+  @Roles(Role.admin, Role.analyst)
+  @Post(':id/attachments')
+  addAttachment(@Param('id') id: string, @Body() dto: AttachmentDto, @CurrentUser() user: AuthUser) {
+    return this.complaints.addAttachment(id, dto.name, dto.url, user.username);
+  }
+
+  @Roles(Role.admin, Role.analyst)
+  @Post(':id/events')
+  addEvent(@Param('id') id: string, @Body() dto: EventDto, @CurrentUser() user: AuthUser) {
+    return this.complaints.addEvent(id, dto.title, dto.description, user.username);
   }
 
   @Roles(Role.admin, Role.analyst)
