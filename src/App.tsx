@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { SplashScreen } from '@/components/brand/SplashScreen'
 import { Titlebar } from '@/components/layout/Titlebar'
 import { OpsSidebar } from '@/components/layout/OpsSidebar'
 import { OperationsPanel } from '@/components/operations/OperationsPanel'
@@ -29,6 +30,9 @@ export default function App() {
   const { view, selectedEngId, selectedOpId, isAuthenticated, selectOperation } = useAppStore()
   const { engagements, operations, loadAll, loaded } = useDataStore()
   const { openGlobalSearch, closeGlobalSearch } = useUIStore()
+
+  // Splash de carregamento (uma vez por abertura da página)
+  const [showSplash, setShowSplash] = useState(true)
 
   const engagement = selectedEngId ? engagements.find(e => e.id === selectedEngId) ?? null : null
   const operation  = selectedOpId  ? operations.find(o => o.id === selectedOpId) ?? null : null
@@ -73,10 +77,16 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  if (!isAuthenticated) return <LoginPage />
+  if (!isAuthenticated) return (
+    <>
+      {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
+      <LoginPage />
+    </>
+  )
 
   return (
     <div className="layout">
+      {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
       {view === 'engagement' && engagement && operation
         ? <Titlebar mode="engagement" operation={operation} engagement={engagement} />
         : <Titlebar mode="operations" />
