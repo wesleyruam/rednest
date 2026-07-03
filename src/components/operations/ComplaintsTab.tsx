@@ -58,10 +58,10 @@ export function ComplaintsTab({ operationId }: { operationId: string }) {
   async function save() {
     if (!form.target.trim() || !form.platform.trim()) { showToast('Informe o alvo e a plataforma', 'error'); return }
     setBusy(true)
-    const payload = { operationId, target: form.target, platform: form.platform, category: form.category || null, ticketId: form.ticketId || null, ticketUrl: form.ticketUrl || null, status: form.status, priority: form.priority, submittedAt: form.submittedAt || null, notes: form.notes || null }
+    const fields = { target: form.target, platform: form.platform, category: form.category || null, ticketId: form.ticketId || null, ticketUrl: form.ticketUrl || null, status: form.status, priority: form.priority, submittedAt: form.submittedAt || null, notes: form.notes || null }
     try {
-      if (editingId) await updateComplaint(editingId, payload)
-      else await createComplaint(payload)
+      if (editingId) await updateComplaint(editingId, fields)          // sem operationId (não permitido no update)
+      else await createComplaint({ operationId, ...fields })
       showToast(editingId ? 'Denúncia atualizada' : 'Denúncia registrada', 'success')
       setShowForm(false); setEditingId(null); load()
     } catch { showToast('Falha ao salvar denúncia', 'error') } finally { setBusy(false) }
@@ -85,7 +85,7 @@ export function ComplaintsTab({ operationId }: { operationId: string }) {
   const statusCounts = useMemo(() => { const m: Record<string, number> = {}; for (const c of items) m[c.status] = (m[c.status] ?? 0) + 1; return m }, [items])
 
   return (
-    <div style={{ padding: '4px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* KPIs + ação */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'stretch', flexWrap: 'wrap' }}>
         {kpis.map(k => (
